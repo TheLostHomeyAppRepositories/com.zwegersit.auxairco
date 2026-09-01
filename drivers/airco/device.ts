@@ -31,6 +31,7 @@ module.exports = class AircoDevice extends Homey.Device {
   private legacySession: LegacyAuxLoginResult | null = null;
   private legacyDevice: LegacyAuxDevice | null = null;
   private pollInterval: NodeJS.Timeout | null = null;
+  private destroyed = false;
 
   private get isLegacy(): boolean {
     return this.getStore().protocol === 'legacy';
@@ -86,6 +87,7 @@ module.exports = class AircoDevice extends Homey.Device {
   }
 
   async onUninit() {
+    this.destroyed = true;
     if (this.pollInterval) this.homey.clearInterval(this.pollInterval);
   }
 
@@ -141,11 +143,22 @@ module.exports = class AircoDevice extends Homey.Device {
     }
   }
 
+  // Runs unattended on a timer, so it must never throw -- an uncaught
+  // rejection here would otherwise surface as a device error for things
+  // that are routinely transient (a session that expired between the retry
+  // attempt, AUX's own server hiccuping, a network blip, or the device
+  // having been deleted from Homey while a poll was already in flight).
+  // Log and let the next scheduled poll try again instead.
   private async pollState(): Promise<void> {
-    if (this.isLegacy) {
-      await this.pollLegacyState();
-    } else {
-      await this.pollNewState();
+    if (this.destroyed) return;
+    try {
+      if (this.isLegacy) {
+        await this.pollLegacyState();
+      } else {
+        await this.pollNewState();
+      }
+    } catch (err) {
+      if (!this.destroyed) this.error('Poll failed, will retry next cycle:', err);
     }
   }
 
