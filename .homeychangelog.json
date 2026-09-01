@@ -13,5 +13,8 @@
   },
   "1.1.0": {
     "en": "Added a fallback to AUX's older cloud backend for accounts/units that don't work on the current one, and fixed the login region to match your own account instead of assuming the Netherlands. The old-backend fallback is new and not yet confirmed working on real hardware — if pairing still fails, please open an issue."
+  },
+  "1.1.1": {
+    "en": "Fixed background status updates sometimes logging errors after a temporary network issue, an expired session, or a removed device."
   }
 }
